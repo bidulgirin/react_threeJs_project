@@ -1,52 +1,133 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
+import { OrbitControls } from "three-stdlib";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import bumplefishModel from "./assets/modeling/bumplefish/source/untitled.gltf";
+import bumplefishTexture from "./assets/modeling/bumplefish/textures/gltf_embedded_0.png";
 
 const ThreeScene = () => {
+    const [position, setPosition] = useState({ x: 0, y: 0, z: 0 });
     const mountRef = useRef(null);
+    const cameraRef = useRef(null); // 카메라를 참조할 ref
+    const rendererRef = useRef(null); // 렌더러를 참조할 ref
 
     useEffect(() => {
         // 1️⃣ 씬 생성
         const scene = new THREE.Scene();
 
-        /*
-          75도의 시야각을 가진 카메라
-          현재 브라우저 창 크기에 맞는 종횡비
-          0.1m보다 가까운 객체는 보이지 않고
-          1000m보다 먼 객체도 보이지 않는
-          📷 일반적인 3D 카메라 설정임 🚀
-        */
-
         // 2️⃣ 카메라 설정 (원근 카메라)
         const camera = new THREE.PerspectiveCamera(
-            75, // 시야각 (Field of View, FOV)
-            window.innerWidth / window.innerHeight, // 종횡비 (Aspect Ratio)
-            0.1, // 근평면 (Near Plane)
-            1000 // 원평면 (Far Plane)
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
         );
         camera.position.z = 5;
+        cameraRef.current = camera; // 카메라 참조
 
         // 3️⃣ 렌더러 생성
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         mountRef.current.appendChild(renderer.domElement);
+        rendererRef.current = renderer; // 렌더러 참조
+
+        // 빛 설정
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 5, 5);
+        scene.add(light);
+
+        const softLight = new THREE.AmbientLight(0x404040); // soft white light
+        scene.add(softLight);
+        softLight.position.set(0, 0, 0);
 
         // 4️⃣ 박스(큐브) 생성
-        const geometry = new THREE.BoxGeometry();
-        const material = new THREE.MeshBasicMaterial({ color: 0x44aa88 });
-        const cube = new THREE.Mesh(geometry, material);
-        scene.add(cube);
+        // const geometry = new THREE.BoxGeometry(); // 모델링
+        // const material = new THREE.MeshBasicMaterial({ color: 0x44aa88 }); // 표면 재질 표현
+        // const cube = new THREE.Mesh(geometry, material);
+        // scene.add(cube);
 
-        // 5️⃣ 애니메이션 루프
+        // 물고기 모델링 생성해서 씬에 넣어보기
+        // 📌 GLTFLoader 인스턴스 생성
+        const loader = new GLTFLoader();
+        const textureLoader = new THREE.TextureLoader();
+        const texture = textureLoader.load(`${bumplefishTexture}`);
+
+        // 📌 3D 모델 로드
+        loader.load(
+            `${bumplefishModel}`, // 경로: 모델 파일 (GLTF/GLB)
+            function (gltf) {
+                const model = gltf.scene;
+                const animations = gltf.animations;
+
+                console.log("model", model);
+                console.log("animations", animations);
+
+                model.position.set(0, 0, 0); // 위치 조정
+
+                const xRotate = 0;
+                const yRotate = 0;
+                const zRotate = 0;
+
+                model.rotation.set(xRotate, yRotate, zRotate); // Y축으로 180도 회전시켜서 앞을 보게 함
+
+                scene.add(model); // 씬에 추가
+
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.material.map = texture;
+                        child.material.needsUpdate = true; // 재렌더링을 위해
+                    }
+                });
+
+                if (animations && animations.length > 0) {
+                    const mixer = new THREE.AnimationMixer(model);
+
+                    animations.forEach((clip) => {
+                        mixer.clipAction(clip).play();
+                    });
+
+                    scene.add(model);
+
+                    // 애니메이션을 업데이트하는 루프
+                    function fishMoving() {
+                        requestAnimationFrame(fishMoving);
+                        mixer.update(0.01); // 애니메이션 업데이트
+                        renderer.render(scene, camera);
+                    }
+                    fishMoving();
+                } else {
+                    console.log("애니메이션이 포함되지 않은 모델입니다.");
+                }
+            },
+            //  xhr.total 가 값이 0 이 나와서 (서버에서 안던져주는것같음) 주석처리함
+            // function (xhr) {
+            //     console.log("xhr", xhr.total);
+            //     console.log(`로드 진행 중: ${(xhr.loaded / xhr.total) * 100}%`);
+            // },
+            undefined,
+            function (error) {
+                console.error("로드 실패:", error);
+            }
+        );
+        // 5️⃣ OrbitControls 추가
+        const controls = new OrbitControls(camera, renderer.domElement); // 카메라와 렌더러를 OrbitControls에 전달
+        controls.enableDamping = true; // 댐핑 효과 (부드러운 움직임)
+        controls.dampingFactor = 0.25; // 댐핑 정도
+        controls.screenSpacePanning = false; // 화면 상의 이동 제한
+
+        // 6️⃣ 애니메이션 루프
         const animate = () => {
             requestAnimationFrame(animate);
-            cube.rotation.x += 0.01;
-            cube.rotation.y += 0.01;
+            // cube.rotation.x += 0.01;
+            // cube.rotation.y += 0.01;
+
+            controls.update(); // OrbitControls 업데이트
             renderer.render(scene, camera);
         };
 
         animate();
 
-        // 6️⃣ 화면 리사이즈 시 카메라와 렌더러 크기 조정
+        // 7️⃣ 화면 리사이즈 시 카메라와 렌더러 크기 조정
         const handleResize = () => {
             const width = window.innerWidth;
             const height = window.innerHeight;
@@ -61,7 +142,7 @@ const ThreeScene = () => {
 
         window.addEventListener("resize", handleResize);
 
-        // 7️⃣ 클린업 (컴포넌트가 언마운트될 때 정리)
+        // 8️⃣ 클린업 (컴포넌트가 언마운트될 때 정리)
         return () => {
             window.removeEventListener("resize", handleResize);
             mountRef.current.removeChild(renderer.domElement);
