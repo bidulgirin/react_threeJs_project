@@ -8,3 +8,44 @@ html {
     width: 100vw;
     overflow-x: hidden;
 }
+main {
+    position: relative;
+}
+.gf_background {
+    position: absolute;
+    display: fixed;
+    top: 0;
+    left: 0;
+    z-index: 0;
+}
+.gf_container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1;
+    color: white;
+    width: 100vw;
+    height: 100vh;
+    overflow: scroll;
+}
+.gf_section {
+    min-height: 100vh;
+    color: white;
+    padding: 1rem;
+}
+.title {
+    font-size: 3rem;
+    text-transform: uppercase;
+    margin-bottom: 3rem;
+}
+.desc {
+    width: 50%;
+    font-size: 1rem;
+}
+.gf_flex {
+    display: flex;
+    &.c_c {
+        justify-content: center;
+        align-items: center;
+    }
+}

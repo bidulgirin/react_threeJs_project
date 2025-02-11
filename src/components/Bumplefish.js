@@ -146,14 +146,14 @@ const ThreeScene = () => {
 
     useEffect(() => {
         const handleWheel = (event) => {
+            console.log("event", event);
             if (!modelRef.current) return;
 
             // wheel 이벤트에서 deltaY 값을 가져와서 모델의 위치와 회전 변화
             const delta = event.deltaY > 0 ? 1 : -1; // 휠 방향에 따라 양/음 값 결정
-
             // 모델의 위치 변화 (deltaY에 비례하여 이동)
-            const maxMovement = 5; // 모델의 최대 이동 범위
-            const movementFactor = 0.05; // 휠에 따른 이동 비율
+            const maxMovement = 1; // 모델의 최대 이동 범위
+            const movementFactor = 0.1; // 휠에 따른 이동 비율
             const movement = delta * movementFactor * maxMovement;
 
             modelRef.current.position.x += movement; // X축 이동
@@ -167,26 +167,54 @@ const ThreeScene = () => {
             modelRef.current.rotation.y += delta * rotationFactor;
             modelRef.current.rotation.z += delta * rotationFactor;
 
-            // 카메라도 모델을 계속 바라보게 설정 (필요시)
+            // 카메라도 모델을 계속 바라보게 설정
             camera.lookAt(modelRef.current.position);
         };
 
         // wheel 이벤트 리스너 추가
+        //window.addEventListener("wheel", handleWheel);
         window.addEventListener("wheel", handleWheel);
 
         // cleanup 함수에서 이벤트 리스너 제거
         return () => {
-            window.removeEventListener("wheel", handleWheel);
+            //window.removeEventListener("wheel", handleWheel);
+            window.addEventListener("wheel", handleWheel);
         };
     }, []);
 
     useEffect(() => {
+        const movementSpeed = 0.01; // 모델 이동 속도 (기본값)
+        const rotationSpeed = 0.005; // 모델 회전 속도 (기본값)
+
+        // 스크롤 이벤트 처리
+        const handleScroll = () => {
+            if (!modelRef.current) return;
+
+            const scrollY = window.scrollY; // 현재 스크롤 위치
+            const totalHeight = document.body.scrollHeight - window.innerHeight; // 전체 페이지 높이
+
+            // 스크롤 위치에 비례하여 모델의 위치와 회전값 변경
+            const scrollPercentage = scrollY / totalHeight;
+
+            // 모델의 위치 변화 (X, Y, Z 축 이동)
+            modelRef.current.position.x = scrollPercentage * 10; // X축 이동
+            modelRef.current.position.y = scrollPercentage * 5; // Y축 이동
+            modelRef.current.position.z = scrollPercentage * -10; // Z축 이동 (음수로 하면 카메라와 반대 방향으로 이동)
+
+            // 모델의 회전 변화 (스크롤에 따른 회전)
+            modelRef.current.rotation.x = scrollPercentage * Math.PI; // 180도 회전
+            modelRef.current.rotation.y = scrollPercentage * Math.PI; // 180도 회전
+
+            // 카메라가 모델을 계속 바라보게 설정
+            camera.lookAt(modelRef.current.position);
+        };
+
+        // 터치 이벤트 처리
         let startX = 0;
         let startY = 0;
         let startTouch = false;
 
         const handleTouchStart = (event) => {
-            // 터치 시작 위치 저장 (첫 번째 터치만 사용)
             startTouch = true;
             startX = event.touches[0].clientX;
             startY = event.touches[0].clientY;
@@ -195,28 +223,20 @@ const ThreeScene = () => {
         const handleTouchMove = (event) => {
             if (!startTouch || !modelRef.current) return;
 
-            // 터치 이동 거리 계산
             const moveX = event.touches[0].clientX - startX;
             const moveY = event.touches[0].clientY - startY;
 
-            // 모델의 위치와 회전 변화
-            const movementFactor = 0.1; // 터치 이동 비율 조정
-            const rotationFactor = 0.005; // 터치 이동에 따른 회전 비율 조정
+            // 일정한 속도로 모델 이동 및 회전
+            modelRef.current.position.x += moveX * movementSpeed;
+            modelRef.current.position.y -= moveY * movementSpeed; // Y축은 반대 방향
+            modelRef.current.position.z += (moveX + moveY) * movementSpeed;
 
-            // 모델의 위치 변화 (X, Y, Z 축 이동)
-            modelRef.current.position.x += moveX * movementFactor;
-            modelRef.current.position.y -= moveY * movementFactor; // Y축은 반대 방향
-            modelRef.current.position.z += (moveX + moveY) * movementFactor;
+            modelRef.current.rotation.x += moveY * rotationSpeed;
+            modelRef.current.rotation.y += moveX * rotationSpeed;
 
-            // 모델의 회전 변화 (터치 이동에 따른 회전)
-            modelRef.current.rotation.x += moveY * rotationFactor;
-            modelRef.current.rotation.y += moveX * rotationFactor;
-
-            // 터치 위치 업데이트
             startX = event.touches[0].clientX;
             startY = event.touches[0].clientY;
 
-            // 카메라도 모델을 계속 바라보게 설정 (필요시)
             camera.lookAt(modelRef.current.position);
         };
 
@@ -224,13 +244,17 @@ const ThreeScene = () => {
             startTouch = false;
         };
 
-        // 터치 이벤트 리스너 추가
+        // 스크롤 이벤트 리스너 추가
+        window.addEventListener("scroll", handleScroll);
+
+        // 터치 이벤트 리스너 추가 (모바일에서도 작동)
         window.addEventListener("touchstart", handleTouchStart);
         window.addEventListener("touchmove", handleTouchMove);
         window.addEventListener("touchend", handleTouchEnd);
 
         // cleanup 함수에서 이벤트 리스너 제거
         return () => {
+            window.removeEventListener("scroll", handleScroll);
             window.removeEventListener("touchstart", handleTouchStart);
             window.removeEventListener("touchmove", handleTouchMove);
             window.removeEventListener("touchend", handleTouchEnd);
